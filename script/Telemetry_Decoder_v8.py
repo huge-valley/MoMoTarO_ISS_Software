@@ -1136,19 +1136,19 @@ class EXAMPLE:
                 print('config')
                 d = TD_CONFIG()
                 df_hk = d.read_HK(DIR)
-                df_hk['Time'] = d.time(DIR)
+                df_hk['time'] = d.time(DIR)
 
             elif sp.init(DIR) == 1:
                 print('event')
                 d = TD_EVENT()
                 df_hk = d.read_HK(DIR)
-                df_hk['Time'] = d.time(DIR) 
+                df_hk['time'] = d.time(DIR) 
 
             elif sp.init(DIR) == 2:
                 print('shape')
                 d = TD_SHAPE()
                 df_hk = d.read_HK(DIR)
-                df_hk['Time'] = d.time(DIR)
+                df_hk['time'] = d.time(DIR)
 
             elif sp.init(DIR) == 3:
                 print('event_only_mode')
