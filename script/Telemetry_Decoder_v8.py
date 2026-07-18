@@ -6,6 +6,7 @@ import sys
 #Decoder
 import pandas as pd
 import uproot
+from datetime import datetime
 
 #VISUALIZER
 import ROOT
@@ -15,6 +16,8 @@ import copy                     #to copy the colorbar
 
 #EXAMPLE
 import glob
+
+
 
 
 #super class
@@ -35,16 +38,16 @@ class TD_SUPER:
 
          #21 word Others_DEC
         others = int.from_bytes(chunk[40:42], byteorder='big')
-        SiPM3 = (others >> 14) & 0x01
-        SiPM2 = (others >> 13) & 0x01
-        SiPM1 = (others >> 12) & 0x01
-        SiPM0 = (others >> 11) & 0x01
-        daq = (others >> 9) & 0x01
+        # SiPM3 = (others >> 14) & 0x01
+        # SiPM2 = (others >> 13) & 0x01
+        # SiPM1 = (others >> 12) & 0x01
+        # SiPM0 = (others >> 11) & 0x01
+        # daq = (others >> 9) & 0x01
         PImode = (others >> 4) & 0x03
-        SiPM7 = (others >> 3) & 0x01
-        SiPM6 = (others >> 2) & 0x01
-        SiPM5 = (others >> 1) & 0x01
-        SiPM4 = others & 0x01
+        # SiPM7 = (others >> 3) & 0x01
+        # SiPM6 = (others >> 2) & 0x01
+        # SiPM5 = (others >> 1) & 0x01
+        # SiPM4 = others & 0x01
         # print(int(f"{SiPM3}{SiPM2}{SiPM1}{SiPM0}{daq}{PImode}{SiPM7}{SiPM6}{SiPM5}{SiPM4}"))
         return PImode
         # row['Others_DEC'] = int(f"{gps_stat}{flag_daq}{flag_spre}{flag_sensor}{pi_mode}{reserved}")
@@ -64,8 +67,15 @@ class TD_SUPER:
                     
         print(f"saved to {output_filename}")
 
-    # def to_csv(self, outlput_filename):
-         
+    def time(self, DIR):
+
+        base = os.path.basename(DIR)
+        filename, _ = os.path.splitext(base)
+        date_format = '%Y%m%d_%H%M%S'
+
+        time = datetime.strptime(filename, date_format)
+        # print(int(time.timestamp())) #unix_time
+        return time
      
 
 class TD_CONFIG(TD_SUPER):
@@ -1051,6 +1061,7 @@ class EXAMPLE:
 
 
         df_HK = d.read_HK(DIR)
+        df_HK['Unix_Time'] = d.time(DIR).timestamp() #Unix_Time
         pd.set_option("display.max_rows", None)  
         pd.set_option("display.max_columns", None)  
         print(df_HK)
@@ -1059,8 +1070,8 @@ class EXAMPLE:
             print(df_pi)
 
     #example2 -> make 1 h file
-    def ex2(self, path, yyyy, mm, dd, hh):
-        files = glob.glob(f'{path}/{yyyy}{mm:02}{dd:02}_{hh:02}*.dat')
+    def ex2(self, ipath, opath, yyyy, mm, dd, hh):
+        files = glob.glob(f'{ipath}/{yyyy}{mm:02}{dd:02}_{hh:02}*.dat')
         # print(files)
         
         df_EVENT = pd.DataFrame()
@@ -1078,18 +1089,23 @@ class EXAMPLE:
                 print('event')
                 d = TD_EVENT()
                 df_pi = d.read_PI(DIR)
+                df_pi['Unix_Time'] = d.time(DIR).timestamp() #Unix_Time
                 df_EVENT = pd.concat([df_EVENT, df_pi], ignore_index=True)
+
 
             elif sp.init(DIR) == 2:
                 print('shape')
                 d = TD_SHAPE()
                 df_pi = d.read_PI(DIR)
+                df_pi['Unix_Time'] = d.time(DIR).timestamp() #Unix_Time
                 df_SHAPE = pd.concat([df_SHAPE, df_pi], ignore_index=True)
+
 
             elif sp.init(DIR) == 3:
                 print('event_only_mode')
                 d = TD_EVENT_ONLY()
                 df_pi = d.read_PI(DIR)
+                df_pi['Unix_Time'] = d.time(DIR).timestamp() #Unix_Time
                 df_EVENT_ONLY = pd.concat([df_EVENT_ONLY, df_pi], ignore_index=True)
 
             else:
@@ -1102,27 +1118,76 @@ class EXAMPLE:
             "EVENT_ONLY": df_EVENT_ONLY
         }
 
-        output_file = f"{path}/{yyyy}{mm:02}{dd:02}_{hh:02}.root"
+        os.makedirs(opath,exist_ok=True)
+        output_file = f"{opath}/{yyyy}{mm:02}{dd:02}_{hh:02}.root"
         sp.to_root(data_to_save, output_file)
+    
+    #make 1 hour hk csv file 
+    def ex3(self, ipath, opath, yyyy, mm, dd, hh):
+        files = glob.glob(f'{ipath}/{yyyy}{mm:02}{dd:02}_{hh:02}*.dat')
+        # print(files)
         
-        
+        df_HK = pd.DataFrame()
 
+        for filename in files:
+            DIR = filename
+            
+            if sp.init(DIR) == 0:
+                print('config')
+                d = TD_CONFIG()
+                df_hk = d.read_HK(DIR)
+                df_hk['Time'] = d.time(DIR)
+
+            elif sp.init(DIR) == 1:
+                print('event')
+                d = TD_EVENT()
+                df_hk = d.read_HK(DIR)
+                df_hk['Time'] = d.time(DIR) 
+
+            elif sp.init(DIR) == 2:
+                print('shape')
+                d = TD_SHAPE()
+                df_hk = d.read_HK(DIR)
+                df_hk['Time'] = d.time(DIR)
+
+            elif sp.init(DIR) == 3:
+                print('event_only_mode')
+                d = TD_EVENT_ONLY()
+                df_hk = d.read_HK(DIR)
+                df_hk['Time'] = d.time(DIR)
+
+            else:
+                print('exit status 1')
+                sys.exit()
+            df_HK = pd.concat([df_HK, df_hk], ignore_index=True)
+
+        df_HK = df_HK.set_index('PcNum')
+        df_HK = df_HK.sort_index()
+        # print('hello')
+
+        os.makedirs(opath,exist_ok=True)
+        output_file = f"{yyyy}{mm:02}{dd:02}_{hh:02}.csv"
+        df_HK.to_csv(f'{opath}/{output_file}')
+    
 
 if __name__ == "__main__":
     sp = TD_SUPER()
     e = EXAMPLE()
     input_path = '../data/Telemetry_test'
+    root_output_path = '../data/root'
+    hk_output_path = '../data/HK'
+
+
     # filename = '20260703_150746.dat' #config
     # filename = '20260703_150830.dat' #event
     filename = '20260703_150959.dat' #shape
     # filename = '20260703_151012.dat' #event_only
 
-    
-    # filename = '20260703_150850.dat'
-    DIR = input_path + '/' + filename
 
+    DIR = input_path + '/' + filename
     e.ex1(DIR)
-    e.ex2(input_path, 2026, 7,3, 15)
+    e.ex2(input_path, root_output_path, 2026, 7,3, 15)
+    e.ex3(input_path, hk_output_path ,2026, 7,3, 15)
     
     
 
