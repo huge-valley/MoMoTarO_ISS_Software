@@ -1154,7 +1154,7 @@ class EXAMPLE:
                 print('event_only_mode')
                 d = TD_EVENT_ONLY()
                 df_hk = d.read_HK(DIR)
-                df_hk['Time'] = d.time(DIR)
+                df_hk['time'] = d.time(DIR)
 
             else:
                 print('exit status 1')
